@@ -1,0 +1,22 @@
+{
+  "name": "html-to-pdf-lambda",
+  "version": "1.0.0",
+  "description": "AWS Lambda function to convert HTML to PDF",
+  "main": "index.js",
+  "dependencies": {
+    "chrome-aws-lambda": "^10.1.0",
+    "puppeteer-core": "^10.1.0",
+    "aws-sdk": "^2.1440.0"
+  },
+  "devDependencies": {
+    "puppeteer": "^10.1.0",
+    "jest": "^29.7.0",
+    "sinon": "^17.0.1",
+    "aws-sdk-mock": "^5.8.0"
+  },
+  "scripts": {
+    "test": "jest",
+    "test:local": "node test/local-test.js",
+    "test:puppeteer": "node test/local-puppeteer.js"
+  }
+}

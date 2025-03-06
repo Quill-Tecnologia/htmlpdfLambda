@@ -1,4 +1,5 @@
-const chromium = require('chrome-aws-lambda');
+const chromium = require("@sparticuz/chromium");
+const puppeteer = require("puppeteer-core");
 const AWS = require('aws-sdk');
 const s3 = new AWS.S3();
 
@@ -14,15 +15,16 @@ exports.handler = async (event, context) => {
             };
         }
         
-        const outputBucket = event.outputBucket || "eclosing-dumps";
+        const outputBucket = event.outputBucket || process.env.OUTPUT_BUCKET;
         const outputKey = event.outputKey || `pdf-${Date.now()}.pdf`;
         
-        browser = await chromium.puppeteer.launch({
+        browser = await puppeteer.launch({
             args: chromium.args,
             defaultViewport: chromium.defaultViewport,
-            executablePath: await chromium.executablePath,
+            executablePath: await chromium.executablePath(),
             headless: chromium.headless,
             ignoreHTTPSErrors: true,
+            ignoreDefaultArgs: ['--disable-extensions']
         });
         
         const pdfBuffer = await scrapeWebsite(browser, url);

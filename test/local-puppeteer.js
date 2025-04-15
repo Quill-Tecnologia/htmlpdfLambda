@@ -1,8 +1,14 @@
-const puppeteer = require('puppeteer');
+const puppeteer = require("puppeteer-extra");
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const AWS = require('aws-sdk');
 const fs = require('fs');
 const path = require('path');
 
+ puppeteer.use(StealthPlugin());
+
+ const proxyUser = "brd-customer-hl_1526f663-zone-isp";
+ const proxyPass = "n73vywjo51c8";
+ const proxy = 'brd.superproxy.io:33335';
 // Local version of the Lambda function using regular Puppeteer
 async function localHandler(event, context) {
   let browser = null;
@@ -15,15 +21,18 @@ async function localHandler(event, context) {
         body: JSON.stringify({ error: 'URL parameter is required' })
       };
     }
-    
+  
     const outputBucket = event.outputBucket;
     const outputKey = event.outputKey || `pdf-${Date.now()}.pdf`;
-    
+ 
+
     browser = await puppeteer.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--proxy-server=' + proxy]
     });
     
+    
+
     const pdfBuffer = await scrapeWebsite(browser, url);
     
     if (outputBucket) {
@@ -71,6 +80,10 @@ async function localHandler(event, context) {
 
 async function scrapeWebsite(browser, url) {
   const page = await browser.newPage();
+  await page.authenticate({
+    username: proxyUser,
+    password: proxyPass
+  });
   
   try {
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
@@ -100,7 +113,7 @@ async function scrapeWebsite(browser, url) {
     });
     
     await autoScroll(page);
-    await waitForNetworkIdle(page, pendingRequests, 3000);
+    await waitForNetworkIdle(page, pendingRequests, 30000);
     
     await page.evaluate(() => {
       const images = document.querySelectorAll('img');
@@ -108,7 +121,7 @@ async function scrapeWebsite(browser, url) {
         if (img.complete) return;
         img.src = img.src;
       });
-      return new Promise(resolve => setTimeout(resolve, 3000));
+      return new Promise(resolve => setTimeout(resolve, 30000));
     });
     
     const pdfBuffer = await page.pdf({ format: 'A4' });
@@ -137,7 +150,7 @@ async function autoScroll(page) {
   });
 }
 
-async function waitForNetworkIdle(page, pendingRequests, timeout = 3000) {
+async function waitForNetworkIdle(page, pendingRequests, timeout = 30000) {
   if (pendingRequests.size === 0) return;
   
   await new Promise(resolve => {
@@ -156,7 +169,7 @@ async function waitForNetworkIdle(page, pendingRequests, timeout = 3000) {
 async function runTest() {
   try {
     const result = await localHandler({ 
-      url: 'https://us-central1-infosimples-data.cloudfunctions.net/infosimples-storage/5BqXbTz8vFxoyaHPtDPltS7ieC6dKAnCXRRGHwL3t9E=/1741825062/omfRe0/aHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL2luZm9zaW1wbGVzLWFwaS10bXAvYXBpL3BnZS9zcC9kaXZpZGEtYXRpdmEvMjAyNTAzMDUyMTE3NDIvNmotLUp2Y2lrWk5yb2Y4LWNGTnlZWVNSTExXUGFBRS0vZTFjODU3NjUwMTc3ZWFlZjQyMGI1Y2U3YWYwNDBjZjFfMF92Y00=.html'
+      url: 'https://us-central1-infosimples-data.cloudfunctions.net/infosimples-storage/Lhb3BCVGR5jh6bvPkllZmA_NpecZjjgWFnrhn5PZLYM=/1741999024/w2Nhzg/aHR0cHM6Ly9zdG9yYWdlLmdvb2dsZWFwaXMuY29tL2luZm9zaW1wbGVzLWFwaS10bXAvYXBpL3RyaWJ1bmFsL3RyZjMvY2VydGlkYW8tZGlzdHIvMjAyNTAzMDcyMTM3MDQvQW5PVS04czNHakZ4d1VaR2dyOTVNcXd3Rl9RTFZsQTIvOGE5MWJhMmRhNjI1NWY5MzcwNzI2NzQ5ZTM2MTkxMzhfMF9nYkk=.html'
     }, {});
     
     console.log('Status code:', result.statusCode);

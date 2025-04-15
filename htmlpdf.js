@@ -1,14 +1,10 @@
 const chromium = require("@sparticuz/chromium");
 const puppeteer = require("puppeteer-extra");
-const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const AWS = require('aws-sdk');
 const s3 = new AWS.S3();
+const StealthPlugin = require('puppeteer-extra-plugin-stealth')
 
-const proxyUser = "brd-customer-hl_1526f663-zone-isp";
-const proxyPass = "n73vywjo51c8";
-const proxy = 'brd.superproxy.io:33335';
-
-puppeteer.use(StealthPlugin());
+puppeteer.use(StealthPlugin())
 
 exports.handler = async (event, context) => {
     let browser = null;
@@ -26,14 +22,20 @@ exports.handler = async (event, context) => {
         const outputKey = event.outputKey || `pdf-${Date.now()}.pdf`;
         
         browser = await puppeteer.launch({
-            args: [...chromium.args, `--proxy-server=${proxy}`],
-            defaultViewport: chromium.defaultViewport,
+            args: [
+                ...chromium.args,
+                '--disable-features=IsolateOrigins',
+                '--disable-site-isolation-trials',
+                '--disable-web-security',
+                '--disable-features=CrossSiteDocumentBlockingIfIsolating',
+                '--no-sandbox'
+            ],
+            defaultViewport: { width: 1366, height: 1024 },
             executablePath: await chromium.executablePath(),
             headless: chromium.headless,
             ignoreHTTPSErrors: true,
             ignoreDefaultArgs: ['--disable-extensions']
         });
-        
         const pdfBuffer = await scrapeWebsite(browser, url);
         
         if (outputBucket) {
@@ -48,7 +50,7 @@ exports.handler = async (event, context) => {
                 statusCode: 200,
                 body: JSON.stringify({
                     message: 'PDF created successfully',
-                    location: `s3://${outputBucket}/${outputKey}`
+                    outputKey: `${outputKey}`
                 })
             };
         } else {
@@ -97,10 +99,14 @@ async function scrapeWebsite(browser, url) {
             pendingRequests.delete(request);
             console.log('Request failed:', request.url());
         });
+        await page.setExtraHTTPHeaders({
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Referer': 'https://google.com/'
+        });
+        await page.goto(url, { timeout: 40000 });
         
-        await page.goto(url, { timeout: 30000 });
-        
-        await page.waitForSelector('img', { timeout: 15000 }).catch(() => {
+        await page.waitForSelector('p.row:nth-child(2)', { timeout: 15000 }).catch(() => {
             console.log('Selector not found, continuing execution');
         });
         
@@ -113,7 +119,7 @@ async function scrapeWebsite(browser, url) {
                 if (img.complete) return;
                 img.src = img.src;
             });
-            return new Promise(resolve => setTimeout(resolve, 3000));
+            return new Promise(resolve => setTimeout(resolve, 5000));
         });
         
         const pdfBuffer = await page.pdf({ format: 'A4' });
@@ -137,7 +143,7 @@ async function autoScroll(page) {
                     clearInterval(timer);
                     resolve();
                 }
-            }, 100);
+            }, 50);
         });
     });
 }

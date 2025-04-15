@@ -4,9 +4,11 @@
   "description": "AWS Lambda function to convert HTML to PDF",
   "main": "index.js",
   "dependencies": {
+    "@sparticuz/chromium": "~133.0.0",
     "aws-sdk": "^2.1440.0",
-    "puppeteer-core": "^10.4.0",
-    "@sparticuz/chromium": "~133.0.0"
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "request-promise": "^4.2.6"
   },
   "scripts": {
     "test": "jest",
